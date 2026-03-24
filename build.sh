@@ -15,6 +15,7 @@ cp .build/release/YouGotMentioned "$APP/Contents/MacOS/"
 strip "$APP/Contents/MacOS/YouGotMentioned"
 cp Info.plist "$APP/Contents/"
 cp YouGotMentioned.icns "$APP/Contents/Resources/"
+codesign --force --deep --sign - "$APP"
 
 echo "Done → $PWD/$APP"
 echo ""

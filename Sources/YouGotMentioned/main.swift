@@ -1,71 +1,38 @@
-import AppKit
-import ApplicationServices
+import Cocoa
+import UserNotifications
 
 // MARK: - AX Helpers
 
-private func axAttr(_ el: AXUIElement, _ attr: String) -> CFTypeRef? {
-    var value: CFTypeRef?
-    AXUIElementCopyAttributeValue(el, attr as CFString, &value)
-    return value
-}
-
-private func axChildren(_ el: AXUIElement) -> [AXUIElement] {
-    axAttr(el, "AXChildren") as? [AXUIElement] ?? []
-}
-
-private func axString(_ el: AXUIElement, _ attr: String) -> String? {
-    axAttr(el, attr) as? String
+private func axAttr<T>(_ el: AXUIElement, _ attr: String) -> T? {
+    var v: CFTypeRef?
+    AXUIElementCopyAttributeValue(el, attr as CFString, &v)
+    return v as? T
 }
 
 private func findCaptionsRoot(_ el: AXUIElement, depth: Int = 0) -> AXUIElement? {
     guard depth < 25 else { return nil }
-    if axString(el, "AXDescription") == "Live Captions" { return el }
-    for child in axChildren(el) {
+    if let desc: String = axAttr(el, "AXDescription"), desc == "Live Captions" { return el }
+    for child in axAttr(el, "AXChildren") as [AXUIElement]? ?? [] {
         if let found = findCaptionsRoot(child, depth: depth + 1) { return found }
     }
     return nil
 }
 
-private func collectEntries(_ el: AXUIElement, depth: Int = 0, into result: inout [(String, String)]) {
-    guard depth < 15 else { return }
-    let children = axChildren(el)
-    let texts = children.filter { axString($0, "AXRole") == "AXStaticText" }
+private func extractEntries(_ el: AXUIElement, depth: Int = 0, into result: inout [(String, String)]) {
+    guard depth < 15, let children: [AXUIElement] = axAttr(el, "AXChildren") else { return }
+    let texts = children.filter { axAttr($0, "AXRole") == "AXStaticText" }
+
     if texts.count == 2,
-       let spk = axString(texts[0], "AXValue")?.trimmingCharacters(in: .whitespaces),
-       let txt = axString(texts[1], "AXValue")?.trimmingCharacters(in: .whitespaces),
-       !spk.isEmpty, !txt.isEmpty
-    {
-        result.append((spk, txt))
-        return
+       let spk: String = axAttr(texts[0], "AXValue"),
+       let txt: String = axAttr(texts[1], "AXValue") {
+        let s = spk.trimmingCharacters(in: .whitespaces)
+        let t = txt.trimmingCharacters(in: .whitespaces)
+        if !s.isEmpty && !t.isEmpty { result.append((s, t)); return }
     }
-    for child in children { collectEntries(child, depth: depth + 1, into: &result) }
+    for child in children { extractEntries(child, depth: depth + 1, into: &result) }
 }
 
-private func extractEntries(_ root: AXUIElement) -> [(String, String)] {
-    var result: [(String, String)] = []
-    collectEntries(root, into: &result)
-    return result
-}
-
-// MARK: - Text field with visible focus ring
-
-private final class MenuTextField: NSTextField {
-    override func becomeFirstResponder() -> Bool {
-        let result = super.becomeFirstResponder()
-        if result {
-            layer?.borderColor = NSColor.controlAccentColor.cgColor
-            layer?.borderWidth = 2
-        }
-        return result
-    }
-
-    override func textDidEndEditing(_ notification: Notification) {
-        super.textDidEndEditing(notification)
-        layer?.borderWidth = 0
-    }
-}
-
-// MARK: - Menu that forwards key equivalents to text fields
+// MARK: - Menu Fix for Text Field Copy/Paste
 
 private final class EditableMenu: NSMenu {
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
@@ -73,19 +40,12 @@ private final class EditableMenu: NSMenu {
               let editor = NSApp.keyWindow?.fieldEditor(false, for: nil) else {
             return super.performKeyEquivalent(with: event)
         }
-        let key = event.charactersIgnoringModifiers ?? ""
-        switch key {
+        switch event.charactersIgnoringModifiers {
         case "a": editor.selectAll(nil); return true
         case "c": editor.copy(nil); return true
         case "v": editor.paste(nil); return true
         case "x": editor.cut(nil); return true
-        case "z":
-            if event.modifierFlags.contains(.shift) {
-                editor.undoManager?.redo()
-            } else {
-                editor.undoManager?.undo()
-            }
-            return true
+        case "z": event.modifierFlags.contains(.shift) ? editor.undoManager?.redo() : editor.undoManager?.undo(); return true
         default: return super.performKeyEquivalent(with: event)
         }
     }
@@ -93,22 +53,27 @@ private final class EditableMenu: NSMenu {
 
 // MARK: - App Delegate
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
-
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotificationCenterDelegate {
     private var statusItem: NSStatusItem!
     private var monitorItem: NSMenuItem!
     private var nameField: NSTextField!
     private var pollTimer: Timer?
-    private var finalized: Set<String> = []
+    private var pendingText: String?
+    private var pendingSpeaker: String?
+    private var stableCount = 0
     private var captionsRoot: AXUIElement?
     private var teamsElement: AXUIElement?
 
     private var nameVariants: [String] {
-        get { (UserDefaults.standard.array(forKey: "nameVariants") as? [String]) ?? ["Petrs", "Petr", "Петр"] }
-        set { UserDefaults.standard.set(newValue, forKey: "nameVariants") }
+        get { UserDefaults.standard.stringArray(forKey: "names") ?? ["Petrs", "Petr", "Петр"] }
+        set { UserDefaults.standard.set(newValue, forKey: "names") }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        let nc = UNUserNotificationCenter.current()
+        nc.delegate = self
+        nc.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+
         NSApp.setActivationPolicy(.accessory)
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -117,140 +82,110 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let menu = EditableMenu()
         menu.delegate = self
 
-        monitorItem = NSMenuItem(title: "Start Monitoring", action: #selector(toggleMonitoring), keyEquivalent: "")
+        monitorItem = NSMenuItem(title: "Start Monitoring", action: #selector(toggle), keyEquivalent: "")
         monitorItem.target = self
         menu.addItem(monitorItem)
-
         menu.addItem(.separator())
 
-        let label = NSMenuItem(title: "Names (comma-separated):", action: nil, keyEquivalent: "")
-        label.isEnabled = false
-        menu.addItem(label)
-
-        nameField = MenuTextField(frame: .zero)
-        nameField.translatesAutoresizingMaskIntoConstraints = false
-        nameField.wantsLayer = true
-        nameField.layer?.cornerRadius = 5
-        nameField.focusRingType = .none
-        nameField.stringValue = nameVariants.joined(separator: ", ")
-        nameField.font = .systemFont(ofSize: 12)
-        nameField.placeholderString = "Petrs, Petr, Петр"
-        nameField.isBezeled = true
-        nameField.bezelStyle = .roundedBezel
-        nameField.drawsBackground = true
-        nameField.usesSingleLineMode = false
+        nameField = NSTextField(string: nameVariants.joined(separator: ", "))
+        nameField.placeholderString = "Names (comma-separated)"
+        nameField.frame = NSRect(x: 16, y: 6, width: 218, height: 60)
         nameField.cell?.wraps = true
-        nameField.cell?.isScrollable = false
         nameField.lineBreakMode = .byWordWrapping
-        nameField.target = self
-        nameField.action = #selector(nameFieldChanged)
+
         let container = NSView(frame: NSRect(x: 0, y: 0, width: 250, height: 72))
         container.addSubview(nameField)
-        NSLayoutConstraint.activate([
-            nameField.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
-            nameField.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -16),
-            nameField.topAnchor.constraint(equalTo: container.topAnchor, constant: 6),
-            nameField.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -6),
-        ])
+
         let fieldItem = NSMenuItem()
         fieldItem.view = container
         menu.addItem(fieldItem)
-
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate), keyEquivalent: "q"))
 
         statusItem.menu = menu
     }
 
-    @objc private func toggleMonitoring() {
-        if pollTimer != nil { stopMonitoring() } else { startMonitoring() }
-    }
-
-    private func startMonitoring() {
-        finalized = []
-        captionsRoot = nil
-        teamsElement = nil
-        statusItem.button?.title = "🔔"
-        monitorItem.title = "Stop Monitoring"
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
-            self?.tick()
+    @objc private func toggle() {
+        if pollTimer != nil {
+            pollTimer?.invalidate()
+            pollTimer = nil
+            statusItem.button?.title = "🔕"
+            monitorItem.title = "Start Monitoring"
+        } else {
+            pendingText = nil
+            pendingSpeaker = nil
+            stableCount = 0
+            captionsRoot = nil
+            teamsElement = nil
+            statusItem.button?.title = "🔔"
+            monitorItem.title = "Stop Monitoring"
+            pollTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
+                self?.tick()
+            }
         }
-    }
-
-    private func stopMonitoring() {
-        pollTimer?.invalidate()
-        pollTimer = nil
-        statusItem.button?.title = "🔕"
-        monitorItem.title = "Start Monitoring"
     }
 
     private func tick() {
         if teamsElement == nil {
             guard let app = NSWorkspace.shared.runningApplications.first(where: {
-                $0.bundleIdentifier?.hasPrefix("com.microsoft.teams") == true
+                $0.bundleIdentifier == "com.microsoft.teams" || $0.bundleIdentifier == "com.microsoft.teams2"
             }) else { return }
             teamsElement = AXUIElementCreateApplication(app.processIdentifier)
-            captionsRoot = nil
         }
         guard let teams = teamsElement else { return }
 
-        if captionsRoot == nil {
-            captionsRoot = findCaptionsRoot(teams)
-            guard captionsRoot != nil else { return }
-        }
+        if captionsRoot == nil { captionsRoot = findCaptionsRoot(teams) }
         guard let root = captionsRoot else { return }
 
-        let entries = extractEntries(root)
-        guard entries.count > 1 else { return }
+        var entries: [(String, String)] = []
+        extractEntries(root, into: &entries)
+        guard let (speaker, text) = entries.last else { return }
 
-        for (speaker, text) in entries.dropLast() {
-            let key = "\(speaker)|\(text)"
-            guard !finalized.contains(key) else { continue }
-            finalized.insert(key)
-            checkAndNotify(speaker: speaker, text: text)
+        // Wait for the latest caption to stabilize (~2s)
+        if text == pendingText && speaker == pendingSpeaker {
+            stableCount += 1
+        } else {
+            pendingText = text
+            pendingSpeaker = speaker
+            stableCount = 0
         }
 
-        if finalized.count > 1000 { finalized = Set(finalized.suffix(300)) }
-    }
+        guard stableCount == 5 else { return }
+        stableCount += 1 // prevent re-firing until text changes
 
-    private func checkAndNotify(speaker: String, text: String) {
-        let speakerLow = speaker.lowercased()
-        let textLow = text.lowercased()
-        for name in nameVariants {
-            let nameLow = name.lowercased()
-            if speakerLow.contains(nameLow) { return }
-            if textLow.contains(nameLow) {
-                notify(title: speaker, body: text)
-                return
-            }
+        let names = nameVariants
+        let isMentioned = names.contains { text.localizedCaseInsensitiveContains($0) }
+        let isSpeaker = names.contains { speaker.localizedCaseInsensitiveContains($0) }
+
+        if isMentioned && !isSpeaker {
+            let content = UNMutableNotificationContent()
+            content.title = speaker
+            content.body = text
+            content.sound = .default
+            UNUserNotificationCenter.current().add(
+                UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
         }
-    }
-
-    private func notify(title: String, body: String) {
-        let t = title.replacingOccurrences(of: "\"", with: "'")
-        let b = body.replacingOccurrences(of: "\"", with: "'")
-        let task = Process()
-        task.launchPath = "/usr/bin/osascript"
-        task.arguments = ["-e", "display notification \"\(b)\" with title \"\(t)\""]
-        try? task.run()
     }
 
     private func saveNames() {
-        // End editing so field editor commits text back to nameField.stringValue
         nameField.window?.makeFirstResponder(nil)
-        let parts = nameField.stringValue.split(separator: ",")
+        let parts = nameField.stringValue
+            .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
         if !parts.isEmpty { nameVariants = parts }
     }
 
-    @objc private func nameFieldChanged() { saveNames() }
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound])
+    }
 
     func menuDidClose(_ menu: NSMenu) { saveNames() }
 }
 
-// MARK: - Entry Point
-
+let app = NSApplication.shared
 let delegate = AppDelegate()
-NSApplication.shared.delegate = delegate
-NSApplication.shared.run()
+app.delegate = delegate
+app.run()
