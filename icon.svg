@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 1024 1024"
+   version="1.1"
+   id="svg18"
+   sodipodi:docname="icon.svg"
+   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs18" />
+  <sodipodi:namedview
+     id="namedview18"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="0.66090007"
+     inkscape:cx="246.63335"
+     inkscape:cy="633.22735"
+     inkscape:window-width="2560"
+     inkscape:window-height="1382"
+     inkscape:window-x="0"
+     inkscape:window-y="30"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg18" />
+  <!-- Background -->
+  <rect
+     width="1024"
+     height="1024"
+     rx="230"
+     fill="#1a1a2e"
+     id="rect1" />
+  <g
+     transform="translate(3.6750447,91.513254)"
+     id="g18">
+    <!-- ── TOILET ── -->
+    <!-- Tank -->
+    <rect
+       x="52"
+       y="280"
+       width="195"
+       height="155"
+       rx="18"
+       fill="#e8e8e8"
+       id="rect2" />
+    <rect
+       x="42"
+       y="265"
+       width="215"
+       height="32"
+       rx="12"
+       fill="#d8d8d8"
+       id="rect3" />
+    <!-- Bowl outer -->
+    <path
+       d="m 38,435 v 20 q 0,160 112,160 112,0 112,-160 v -20 z"
+       fill="#e8e8e8"
+       id="path3" />
+    <!-- Seat ring -->
+    <ellipse
+       cx="150"
+       cy="435"
+       rx="112"
+       ry="32"
+       fill="#d0d0d0"
+       id="ellipse3" />
+    <!-- Water -->
+    <ellipse
+       cx="150"
+       cy="580"
+       rx="68"
+       ry="18"
+       fill="#7ec8e3"
+       opacity="0.6"
+       id="ellipse4" />
+    <!-- ── MOTION LINES ── -->
+    <line
+       x1="275"
+       y1="390"
+       x2="415"
+       y2="390"
+       stroke="#6264a7"
+       stroke-width="14"
+       stroke-linecap="round"
+       opacity="0.8"
+       id="line4" />
+    <line
+       x1="290"
+       y1="430"
+       x2="410"
+       y2="430"
+       stroke="#6264a7"
+       stroke-width="10"
+       stroke-linecap="round"
+       opacity="0.6"
+       id="line5" />
+    <line
+       x1="305"
+       y1="465"
+       x2="405"
+       y2="465"
+       stroke="#6264a7"
+       stroke-width="7"
+       stroke-linecap="round"
+       opacity="0.4"
+       id="line6" />
+    <!-- ── RUNNING FIGURE ── -->
+    <g
+       transform="translate(-45)"
+       id="g12">
+      <!-- Body leaning forward -->
+      <line
+         x1="515"
+         y1="268"
+         x2="552"
+         y2="460"
+         stroke="#ffffff"
+         stroke-width="36"
+         stroke-linecap="round"
+         id="line7" />
+      <!-- Left arm (back, flailing) -->
+      <path
+         d="M 522,330 415,295 385,225"
+         stroke="#ffffff"
+         stroke-width="26"
+         stroke-linecap="round"
+         stroke-linejoin="round"
+         fill="none"
+         id="path7" />
+      <!-- Right arm (reaching forward toward laptop) -->
+      <path
+         d="M 535,340 645,295"
+         stroke="#ffffff"
+         stroke-width="26"
+         stroke-linecap="round"
+         id="path8" />
+      <!-- Left leg (behind, extended back) -->
+      <path
+         d="m 553.00779,461.00779 -77,130 -45,50"
+         stroke="#ffffff"
+         stroke-width="30"
+         stroke-linecap="round"
+         stroke-linejoin="round"
+         fill="none"
+         id="path9" />
+      <!-- Right leg (forward stride, knee up) -->
+      <path
+         d="m 553.29707,463.24269 78,-85 65,115"
+         stroke="#ffffff"
+         stroke-width="30"
+         stroke-linecap="round"
+         stroke-linejoin="round"
+         fill="none"
+         id="path10" />
+      <!-- Head (drawn last = on top) -->
+      <circle
+         cx="515"
+         cy="210"
+         r="58"
+         fill="#ffc947"
+         id="circle10" />
+      <!-- Panicked eyes -->
+      <ellipse
+         cx="498"
+         cy="204"
+         rx="10"
+         ry="13"
+         fill="#1a1a2e"
+         id="ellipse10" />
+      <ellipse
+         cx="533"
+         cy="204"
+         rx="10"
+         ry="13"
+         fill="#1a1a2e"
+         id="ellipse11" />
+      <!-- Sweat drop -->
+      <path
+         d="m 558,185 q 7,-15 14,0 0,13 -7,13 -7,0 -7,-13 z"
+         fill="#7ec8e3"
+         id="path11" />
+      <!-- Open mouth (panic) -->
+      <path
+         d="m 493,238 q 22,20 45,0"
+         stroke="#1a1a2e"
+         stroke-width="6"
+         fill="#cc4444"
+         stroke-linecap="round"
+         id="path12" />
+    </g>
+    <!-- ── LAPTOP ── -->
+    <!-- Screen -->
+    <rect
+       x="715"
+       y="258"
+       width="285"
+       height="205"
+       rx="18"
+       fill="#2a2a50"
+       id="rect12" />
+    <rect
+       x="729"
+       y="271"
+       width="257"
+       height="179"
+       rx="11"
+       fill="#6264a7"
+       id="rect13" />
+    <!-- Teams "T" on screen (made from rects) -->
+    <rect
+       x="810"
+       y="308"
+       width="82"
+       height="22"
+       rx="6"
+       fill="#ffffff"
+       id="rect14" />
+    <rect
+       x="838"
+       y="308"
+       width="26"
+       height="84"
+       rx="6"
+       fill="#ffffff"
+       id="rect15" />
+    <!-- Screen glow -->
+    <rect
+       x="715"
+       y="258"
+       width="285"
+       height="205"
+       rx="18"
+       fill="none"
+       stroke="#8082c8"
+       stroke-width="3"
+       opacity="0.7"
+       id="rect16" />
+    <!-- Laptop hinge strip (silver) -->
+    <rect
+       x="700"
+       y="461"
+       width="315"
+       height="22"
+       rx="7"
+       fill="#b8b8b8"
+       id="rect17" />
+    <!-- Red notification badge -->
+    <circle
+       cx="978"
+       cy="268"
+       r="36"
+       fill="#c4314b"
+       id="circle17" />
+    <rect
+       x="972"
+       y="247"
+       width="12"
+       height="26"
+       rx="5"
+       fill="#ffffff"
+       id="rect18" />
+    <circle
+       cx="978"
+       cy="284"
+       r="6"
+       fill="#ffffff"
+       id="circle18" />
+  </g>
+</svg>
